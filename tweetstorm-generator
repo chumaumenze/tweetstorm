@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import argparse
+import re
+
+TWITTER_CHAR_LIMIT = 280
+PREFIX_BUFFER = 20
+TWEETSTORM_CHAR_LIMIT = TWITTER_CHAR_LIMIT - PREFIX_BUFFER
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("corpus", help="Text of arbitrary length")
+    args = parser.parse_args()
+
+    tweets = make_tweetstorm(args.corpus)
+    for tweet in tweets:
+        print(tweet)
+    return
+
+
+def make_tweetstorm(corpus: str, paginate: bool = True, page_all: bool = True):
+    """
+    Create a tweetstorm
+
+    :param corpus: Text of arbitrary length
+    :param paginate: Include pagination of tweets thread
+    :param page_all: Paginate all including single tweet
+    :return: Tweet thread
+    """
+
+    tweets = generate_thread(corpus)
+    if paginate:
+        tweets = paginate_tweets(tweets, page_all)
+    return tweets
+
+
+def generate_thread(corpus: str, ) -> list[str]:
+    """
+    Make tweets from arbitrary large text
+
+    Splits the corpus in to paragraphs and then extracts words from
+    each paragraph to form phrases (tweet) within character limit.
+    """
+
+    if len(corpus) <= TWITTER_CHAR_LIMIT - 4:
+        return [corpus]
+
+    # split corpus into paragraph
+    paragraphs = re.compile(r"\r\n{3,}|\r{3,}|\n{3,}").split(corpus)
+    tweets = []
+
+    for p in paragraphs:
+        tweet = ""
+        words = p.split(" ")
+
+        # create phrases withing char limit from words in paragraph
+        for i, word in enumerate(words):
+            if len(word) > TWEETSTORM_CHAR_LIMIT:
+                raise OverflowError(f"Word too long to be presented: {word}")
+            if len(f"{tweet}{word} ") >= TWEETSTORM_CHAR_LIMIT:
+                tweets.append(tweet.strip())
+                tweet = f"{word} "
+            elif len(words) == i + 1:
+                tweet += words[i]
+                tweets.append(tweet)
+                tweet = ""
+            else:
+                tweet += word + " "
+    return tweets
+
+
+def paginate_tweets(tweets: list[str], page_all=False) -> list[str]:
+    """Add pagination prefix to tweets"""
+
+    if len(tweets) == 1 and not page_all:
+        return tweets
+
+    for i, tweet in enumerate(tweets):
+        page_number = i + 1
+        tweets[i] = f"{page_number}/{len(tweets)} {tweet.strip()}"
+    return tweets
+
+
+if __name__ == '__main__':
+    main()
